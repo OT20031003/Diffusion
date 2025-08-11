@@ -45,17 +45,21 @@ class SinusoidalPositionEmbeddings(torch.nn.Module):
 
 
 class ResNet(torch.nn.Module):
-    def __init__(self, channels):
+    def __init__(self, channels, timeembedding_dim):
         """ 
-        
+        timeembedding_dim: 埋め込みベクトルの次元
         """
         super().__init__()
         self.conv1 = torch.nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, stride=1, padding=1)
         self.relu = torch.nn.ReLU()
         self.conv2 = torch.nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, stride=1, padding=1)
         self.batch_norm = torch.nn.BatchNorm2d(channels)
-    
-    def forward(self, x):
+
+        self.mlp = torch.nn.Sequential(
+            torch.nn.SiLU(),
+            torch.nn.Linear(timeembedding_dim, channels)
+        )
+    def forward(self, x, timeembedding):
         h = x
         x = self.conv1(x)
         x = self.batch_norm(x)
@@ -65,6 +69,7 @@ class ResNet(torch.nn.Module):
         x = self.batch_norm(x)
         x = self.relu(x)
         
+        x += self.mlp(timeembedding).unsqueeze(-1).unsqueeze(-1)
         return x
 def default(x, y):
     if x == None:
