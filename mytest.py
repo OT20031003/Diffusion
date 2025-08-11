@@ -3,7 +3,7 @@ import torch, math
 from PIL import Image
 from torchvision import transforms
 import random
-from myblock import ResNet, Downsample, Upsample, UNet
+from embedingver import ResNet, Downsample, Upsample, UNet, SinusoidalPositionEmbeddings
 def make_beta_schedule(timesteps, start_beta, end_beta):
     a = (end_beta - start_beta ) /timesteps
     #y = a * time + start_beta
@@ -30,9 +30,9 @@ class GaussianDiffusion(Module):
         for i in range(timesteps):
             alpha_bar_schedules.append(tmp * alpha_schedules[i])
             tmp *= alpha_schedules[i]
-        print(alpha_bar_schedules)
+        #print(alpha_bar_schedules)
         self.schedule = torch.tensor(alpha_bar_schedules)
-        print(type(self.schedule))
+        #print(type(self.schedule))
     
     def forward_process(self, img, timestep):
         assert(type(img) == torch.Tensor)
@@ -77,17 +77,27 @@ def save_tensor_as_image(tensor: torch.Tensor, save_path: str):
 
 def main():
     g = GaussianDiffusion()
-    resnet = ResNet(3)
+    resnet = ResNet(3, 128)
     down = Downsample(3)
     up = Upsample(3)
-    u = UNet(3, 64)
+    time_emb_layer = SinusoidalPositionEmbeddings(dim=128)
+
+    #u = UNet(3, 64)
     img_path = "./dataset/02.jpg"
     inp_img = load_image_as_tensor(img_path)
     inp_img = 2*(inp_img) - 1
     save_tensor_as_image(inp_img, "./a.png")
     inp_img = inp_img.unsqueeze(0) # バッチ追加
-    uf  = u.forward(inp_img)
-    print(f"ufshape = {uf.shape}")
-    uf = uf.squeeze(0)
-    save_tensor_as_image(uf, "./c.png")
+    # ここから[1,3,256,256]
+    t = torch.Tensor([10]) 
+    temb = time_emb_layer.forward(t)
+    print(f"time_emb = {temb}")
+    res = resnet.forward(inp_img, temb)
+    print(f"res = {res.shape}")
+    res = res.squeeze(0)
+    save_tensor_as_image(res, "c.png")
+    # uf  = u.forward(inp_img)
+    # print(f"ufshape = {uf.shape}")
+    # uf = uf.squeeze(0)
+    # save_tensor_as_image(uf, "./c.png")
 main()

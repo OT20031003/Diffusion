@@ -11,6 +11,7 @@ class SinusoidalPositionEmbeddings(torch.nn.Module):
         """
         super().__init__()
         self.dim = dim
+        assert(self.dim % 2  == 0)
 
     def forward(self, time):
         """
@@ -25,6 +26,7 @@ class SinusoidalPositionEmbeddings(torch.nn.Module):
         device = time.device
         
         # 埋め込み次元の半分
+
         half_dim = self.dim // 2
         
         # 埋め込みの周波数を計算 (logスケールで)
@@ -60,6 +62,7 @@ class ResNet(torch.nn.Module):
             torch.nn.Linear(timeembedding_dim, channels)
         )
     def forward(self, x, timeembedding):
+        assert(type(timeembedding) == torch.Tensor)
         h = x
         x = self.conv1(x)
         x = self.batch_norm(x)

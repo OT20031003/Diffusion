@@ -1,0 +1,2 @@
+Image successfully saved to ./a.png
+time_emb = tensor([[-0.5440,  0.0998,  0.0010, -0.8391,  0.9950,  1.0000]])
