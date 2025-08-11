@@ -63,6 +63,7 @@ class ResNet(torch.nn.Module):
         )
     def forward(self, x, timeembedding):
         assert(type(timeembedding) == torch.Tensor)
+        "timeembeddingはすでにSinuを通ったもの"
         h = x
         x = self.conv1(x)
         x = self.batch_norm(x)
@@ -71,8 +72,9 @@ class ResNet(torch.nn.Module):
         x += h
         x = self.batch_norm(x)
         x = self.relu(x)
-        
+        #print(f"resnet inside x = {x.shape}")
         x += self.mlp(timeembedding).unsqueeze(-1).unsqueeze(-1)
+        #print(f"mlp shape = {self.mlp(timeembedding).unsqueeze(-1).unsqueeze(-1).shape}")
         return x
 def default(x, y):
     if x == None:
@@ -102,87 +104,91 @@ class Downsample(nn.Module):
         return x
 
 class UNet(nn.Module):
-    def __init__(self, dim, model_channel=64):
+    def __init__(self, dim, model_channel=64, timeembedding_dim=128):
         super().__init__()
         #self.maxpool = nn.MaxPool2d(kernel_size=2, stride=1)
         self.conv_0 = nn.Conv2d(dim, model_channel, 3, 1, padding=1)
         dim = model_channel
-        self.resnet1_1 = ResNet(dim)
-        self.resnet1_2 = ResNet(dim)
+        self.resnet1_1 = ResNet(dim, timeembedding_dim=timeembedding_dim)
+        self.resnet1_2 = ResNet(dim, timeembedding_dim=timeembedding_dim)
         self.downsample1 = Downsample(dim, dim*2)
         dim *= 2
-        self.resnet2_1 = ResNet(dim)
-        self.resnet2_2 = ResNet(dim)
+        self.resnet2_1 = ResNet(dim, timeembedding_dim=timeembedding_dim)
+        self.resnet2_2 = ResNet(dim, timeembedding_dim=timeembedding_dim)
         self.downsample2 = Downsample(dim, dim * 2)
         dim *= 2
-        self.resnet3_1 = ResNet(dim)
-        self.resnet3_2 = ResNet(dim)
+        self.resnet3_1 = ResNet(dim, timeembedding_dim=timeembedding_dim)
+        self.resnet3_2 = ResNet(dim, timeembedding_dim=timeembedding_dim)
         self.downsample3 = Downsample(dim, dim * 2)
         dim *=2
-        self.resnet4_1 = ResNet(dim)
-        self.resnet4_2 = ResNet(dim)
+        self.resnet4_1 = ResNet(dim, timeembedding_dim=timeembedding_dim)
+        self.resnet4_2 = ResNet(dim, timeembedding_dim=timeembedding_dim)
         self.downsample4 = Downsample(dim, dim * 2)
         dim *=2
         #print(f"down = {dim}") # 1024
-        self.resnet5_1 = ResNet(dim)
-        self.resnet5_2 = ResNet(dim)
+        self.resnet5_1 = ResNet(dim, timeembedding_dim=timeembedding_dim)
+        self.resnet5_2 = ResNet(dim, timeembedding_dim=timeembedding_dim)
         self.upsample1 = Upsample(dim, dim//2)
         dim //= 2
         # dim = 512
-        self.resnet6_1 = ResNet(dim*2)
-        self.resnet6_2 = ResNet(dim*2)
+        self.resnet6_1 = ResNet(dim*2, timeembedding_dim=timeembedding_dim)
+        self.resnet6_2 = ResNet(dim*2, timeembedding_dim=timeembedding_dim)
         self.upsample2 = Upsample(dim*2, dim//2)
         dim //= 2
         # dim = 256
-        self.resnet7_1 = ResNet(dim*2)
-        self.resnet7_2 = ResNet(dim*2)
+        self.resnet7_1 = ResNet(dim*2, timeembedding_dim=timeembedding_dim)
+        self.resnet7_2 = ResNet(dim*2, timeembedding_dim=timeembedding_dim)
         self.upsample3 = Upsample(dim*2, dim//2)
         dim //= 2
         #dim = 128
-        self.resnet8_1 = ResNet(dim*2)
-        self.resnet8_2 = ResNet(dim*2)
+        self.resnet8_1 = ResNet(dim*2, timeembedding_dim=timeembedding_dim)
+        self.resnet8_2 = ResNet(dim*2, timeembedding_dim=timeembedding_dim)
         self.upsample4 = Upsample(dim*2, dim // 2)
         dim //= 2
-        self.resnet9_1 = ResNet(dim*2)
-        self.resnet9_2 = ResNet(dim*2)
+        self.resnet9_1 = ResNet(dim*2, timeembedding_dim=timeembedding_dim)
+        self.resnet9_2 = ResNet(dim*2, timeembedding_dim=timeembedding_dim)
         #print(f" dim = {dim}")
         assert(model_channel == dim)
         self.conv_last = nn.Conv2d(dim*2, 3, 3, 1, padding=1)
-
+        self.sinu = SinusoidalPositionEmbeddings(dim=timeembedding_dim)
         
 
 
-    def forward(self, x):
+    def forward(self, x, timestep):
+        tmb = self.sinu(timestep)
+        print(f"tmb.shape = {tmb.shape}")
         x = self.conv_0(x)
-        x = self.resnet1_1(x)
+        x = self.resnet1_1(x, tmb)
         #x = self.resnet1_2(x)
         x1 = x
+        print(f"x1.shape = {x1.shape}")
         x = self.downsample1(x)
-        x = self.resnet2_1(x)
+        x = self.resnet2_1(x, tmb)
         #x = self.resnet2_2(x)
         x2 = x
+        print(f"x2.shape = {x2.shape}")
         x = self.downsample2(x)
-        x = self.resnet3_1(x)
+        x = self.resnet3_1(x, tmb)
         #x = self.resnet3_2(x)
         x3 = x
         x = self.downsample3(x)
-        x = self.resnet4_1(x)
+        x = self.resnet4_1(x, tmb)
         #x = self.resnet4_2(x)
         x4 = x
         x = self.downsample4(x)
-        x = self.resnet5_1(x)
+        x = self.resnet5_1(x, tmb)
         x = self.upsample1(x)
         x = torch.cat((x4, x), dim = 1)
-        x = self.resnet6_1(x)
+        x = self.resnet6_1(x, tmb)
         x = self.upsample2(x)
         x = torch.cat((x3, x), dim = 1)
-        x = self.resnet7_1(x)
+        x = self.resnet7_1(x, tmb)
         x = self.upsample3(x)
         x = torch.cat((x2, x), dim = 1)
-        x = self.resnet8_1(x)
+        x = self.resnet8_1(x, tmb)
         x = self.upsample4(x)
         x = torch.cat((x1, x), dim = 1)
-        x = self.resnet9_1(x)
+        x = self.resnet9_1(x, tmb)
         x = self.conv_last(x)
         return x
 

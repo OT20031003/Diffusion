@@ -89,15 +89,7 @@ def main():
     save_tensor_as_image(inp_img, "./a.png")
     inp_img = inp_img.unsqueeze(0) # バッチ追加
     # ここから[1,3,256,256]
-    t = torch.Tensor([10]) 
-    temb = time_emb_layer.forward(t)
-    print(f"time_emb = {temb}")
-    res = resnet.forward(inp_img, temb)
-    print(f"res = {res.shape}")
-    res = res.squeeze(0)
-    save_tensor_as_image(res, "c.png")
-    # uf  = u.forward(inp_img)
-    # print(f"ufshape = {uf.shape}")
-    # uf = uf.squeeze(0)
-    # save_tensor_as_image(uf, "./c.png")
+    u = UNet(3, 64, timeembedding_dim=128)
+    uf = u.forward(inp_img, torch.Tensor([10]))
+    save_tensor_as_image(uf.squeeze(0), "./c.png")
 main()
