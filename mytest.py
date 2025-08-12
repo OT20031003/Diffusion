@@ -4,6 +4,7 @@ from PIL import Image
 from torchvision import transforms
 import random
 from embedingver import ResNet, Downsample, Upsample, UNet, SinusoidalPositionEmbeddings
+import os
 def make_beta_schedule(timesteps, start_beta, end_beta):
     a = (end_beta - start_beta ) /timesteps
     #y = a * time + start_beta
@@ -33,7 +34,7 @@ class GaussianDiffusion(Module):
         #print(alpha_bar_schedules)
         self.schedule = torch.tensor(self.alpha_bar_schedules)
         self.unet = UNet(3, 64, 128)
-
+        self.timesteps = timesteps
         #print(type(self.schedule))
     
     def forward_process(self, img, timestep):
@@ -114,7 +115,30 @@ class GaussianDiffusion(Module):
             img = self.reverse_onestep(img, ts)
             ts -= 1
     
-    
+def Training(model, optimizer):
+    model.train()
+    dir_path = "./dataset" # dataset内のフォルダの画像
+
+    files_file = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
+    for x in files_file:
+        optimizer.zero_grad()
+        print(x)
+        x_0 = load_image_as_tensor(dir_path + "/" +x)
+        x_0 = x_0.unsqueeze(0)
+        x_0 = x_0 * 2 - 1
+        maxx = model.timesteps
+        minn = 0
+        t = torch.empty(1).uniform_(minn, maxx).long()
+        print(t)
+        epsilon = torch.randn(x_0.shape)
+        
+        predict = model.unet.forward(model.forward_process(x_0, t), t)
+        criterion = torch.nn.MSELoss()
+        loss = criterion(epsilon , predict)
+        loss.backward()
+        optimizer.step()
+
+
      
 def load_image_as_tensor(image_path:str)->torch.Tensor:
     try:
@@ -149,21 +173,7 @@ def save_tensor_as_image(tensor: torch.Tensor, save_path: str):
         print(f"An error occurred while saving the image: {e}")
 
 def main():
-    g = GaussianDiffusion()
-    resnet = ResNet(3, 128)
-    down = Downsample(3)
-    up = Upsample(3)
-    time_emb_layer = SinusoidalPositionEmbeddings(dim=128)
-
-    #u = UNet(3, 64)
-    img_path = "./dataset/02.jpg"
-    inp_img = load_image_as_tensor(img_path)
-    inp_img = 2*(inp_img) - 1
-    save_tensor_as_image(inp_img, "./a.png")
-    inp_img = inp_img.unsqueeze(0) # バッチ追加
-    # ここから[1,3,256,256]
-    u = UNet(3, 64, timeembedding_dim=128)
-    uf = u.forward(inp_img, torch.Tensor([10]))
-    gu = g.reverse_onestep(inp_img, torch.Tensor([10]))
-    save_tensor_as_image(gu.squeeze(0), "./c.png")
+    model = GaussianDiffusion()
+    optimizer = torch.optim.Adam(model.parameters(), lr = 0.01)
+    Training(model, optimizer) 
 main()

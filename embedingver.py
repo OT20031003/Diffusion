@@ -69,11 +69,11 @@ class ResNet(torch.nn.Module):
         x = self.batch_norm(x)
         x = self.relu(x)
         x = self.conv2(x)
-        x += h
+        x = x + h
         x = self.batch_norm(x)
         x = self.relu(x)
         #print(f"resnet inside x = {x.shape}")
-        x += self.mlp(timeembedding).unsqueeze(-1).unsqueeze(-1)
+        x =x + self.mlp(timeembedding).unsqueeze(-1).unsqueeze(-1)
         #print(f"mlp shape = {self.mlp(timeembedding).unsqueeze(-1).unsqueeze(-1).shape}")
         return x
 def default(x, y):
@@ -157,17 +157,17 @@ class UNet(nn.Module):
     def forward(self, x, timestep):
         # timestep: torch.Tensor
         tmb = self.sinu(timestep)
-        print(f"tmb.shape = {tmb.shape}")
+        #print(f"tmb.shape = {tmb.shape}")
         x = self.conv_0(x)
         x = self.resnet1_1(x, tmb)
         x = self.resnet1_2(x, tmb)
         x1 = x
-        print(f"x1.shape = {x1.shape}")
+        #print(f"x1.shape = {x1.shape}")
         x = self.downsample1(x)
         x = self.resnet2_1(x, tmb)
         x = self.resnet2_2(x, tmb)
         x2 = x
-        print(f"x2.shape = {x2.shape}")
+        #print(f"x2.shape = {x2.shape}")
         x = self.downsample2(x)
         x = self.resnet3_1(x, tmb)
         x = self.resnet3_2(x, tmb)
