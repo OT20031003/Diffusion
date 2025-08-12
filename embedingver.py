@@ -176,6 +176,7 @@ class UNet(nn.Module):
         x = self.resnet4_1(x, tmb)
         x = self.resnet4_2(x, tmb)
         x4 = x
+        
         x = self.downsample4(x)
         x = self.resnet5_1(x, tmb)
         x = self.upsample1(x)
