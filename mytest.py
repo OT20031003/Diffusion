@@ -2,6 +2,8 @@ from torch.nn import Module
 import torch, math
 from PIL import Image
 from torchvision import transforms
+import torchvision
+from torch.utils.data import DataLoader
 import random
 from embedingver import ResNet, Downsample, Upsample, UNet, SinusoidalPositionEmbeddings
 import os
@@ -144,12 +146,70 @@ def Training(model, optimizer):
         optimizer.step()
     torch.save(model.state_dict(), 'model_weight.pth')
 
-     
+def get_cifar10_dataloader(batch_size=64):
+    transform = transforms.Compose([
+        transforms.Resize((32, 32)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
+    ])
+    train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    return train_loader
+
+
+# 修正後のTraining関数
+def TrainingCIFAR(model, optimizer, num_epochs=100):
+    model.train()
+    device = next(model.parameters()).device
+    
+    # CIFAR-10のデータローダーを取得
+    # バッチサイズを小さくするとメモリ使用量を抑えられる（例: 16や32）
+    cifar10_loader = get_cifar10_dataloader(batch_size=16) 
+
+    for epoch in range(num_epochs):
+        print(f"--- Epoch {epoch + 1}/{num_epochs} ---")
+        # データローダーからバッチ単位で画像を取り出す
+        # CIFAR-10はラベルも返すが、今回は使わないので '_' で受け取る
+        if epoch == 10:
+            break
+        for i, (images, _) in enumerate(cifar10_loader):
+            if i % 30 == 0:
+                print(f"i = {i}")
+            optimizer.zero_grad()
+            
+            # 画像をモデルと同じデバイスに送る
+            x_0 = images.to(device)
+
+            # タイムステップとノイズも同じデバイス上に作成
+            t = torch.randint(0, model.timesteps, (x_0.shape[0],), device=device).long()
+            epsilon = torch.randn_like(x_0)
+
+            # ノイズ画像を生成
+            noisy_image = model.forward_process(x_0, t)
+            # ノイズを予測
+            predicted_noise = model.unet.forward(noisy_image, t)
+            
+            criterion = torch.nn.MSELoss()
+            loss = criterion(epsilon, predicted_noise)
+            
+            loss.backward()
+            optimizer.step()
+
+            if (i + 1) % 100 == 0:
+                print(f"Batch [{i+1}/{len(cifar10_loader)}], Loss: {loss.item():.6f}")
+                break
+
+    torch.save(model.state_dict(), 'model_weight_cifar10.pth')
+    print("Training finished and model saved.")
+
+
+
 def load_image_as_tensor(image_path:str)->torch.Tensor:
     try:
         pil_img = Image.open(image_path)
         # 256にクリップ
-        transform_clip = transforms.CenterCrop(256)
+        transform_clip = transforms.CenterCrop(32)
         transform = transforms.ToTensor()
         tensor_img = transform(pil_img)
         tensor_img = transform_clip(tensor_img)
@@ -191,7 +251,7 @@ def InferTest():
     # Training関数で保存されるファイル名 'model_weight.pth' を指定
     # map_location=device を使うことで、GPUがない環境でもGPUで学習したモデルを読み込める
     try:
-        model.load_state_dict(torch.load('model_weight.pth', map_location=device))
+        model.load_state_dict(torch.load('model_weight_cifar10.pth', map_location=device))
     except FileNotFoundError:
         print("Error: 'model_weight.pth' not found.")
         print("Please train the model first by uncommenting and running the Training() function in main().")
@@ -202,7 +262,7 @@ def InferTest():
 
     # 3. 画像生成の準備
     # Training時の画像サイズ（CenterCrop(256)）に合わせる
-    image_size = 256
+    image_size = 32
     channels = 3
     batch_size = 1 # 一度に生成する画像の枚数
 
@@ -233,7 +293,11 @@ def Training_test():
     model = GaussianDiffusion()
     optimizer = torch.optim.Adam(model.parameters(), lr = 0.01)
     Training(model, optimizer)
+
+
 def main():
-    Training_test()
-    InferTest()
+    model = GaussianDiffusion()
+    optimizer = torch.optim.Adam(model.parameters(), lr = 0.01)
+    TrainingCIFAR(model, optimizer)
+    #InferTest()
 main()
