@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 import random
 from embedingver import ResNet, Downsample, Upsample, UNet, SinusoidalPositionEmbeddings, SmallUNet
 import os
+from torchvision.datasets import ImageFolder # ImageFolderをインポート
 def make_beta_schedule(timesteps, start_beta, end_beta):
     a = (end_beta - start_beta ) /timesteps
     #y = a * time + start_beta
@@ -123,61 +124,43 @@ class GaussianDiffusion(Module):
         while ts >= 0:
             img = self.reverse_onestep(img, ts)
             ts -= 1
-    
-def Training(model, optimizer):
-    model.train()
-    dir_path = "./dataset" # dataset内のフォルダの画像
 
-    files_file = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
-    for x in files_file:
-        optimizer.zero_grad()
-        print(x)
-        x_0 = load_image_as_tensor(dir_path + "/" +x)
-        x_0 = x_0.unsqueeze(0)
-        x_0 = x_0 * 2 - 1
-        maxx = model.timesteps
-        minn = 0
-        t = torch.empty(1).uniform_(minn, maxx).long()
-        print(t)
-        epsilon = torch.randn(x_0.shape)
-        
-        predict = model.unet.forward(model.forward_process(x_0, t), t)
-        criterion = torch.nn.MSELoss()
-        loss = criterion(epsilon , predict)
-        loss.backward()
-        optimizer.step()
-    torch.save(model.state_dict(), 'model_weight.pth')
-
-def get_cifar10_dataloader(batch_size=64):
+def get_ffhq_dataloader(image_path, image_size, batch_size):
+    """
+    FFHQデータセット用のデータローダーを作成する関数
+    """
     transform = transforms.Compose([
-        transforms.Resize((32, 32)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
+        transforms.Resize(image_size), # 画像をリサイズ
+        transforms.CenterCrop(image_size), # 中央をクロップ
+        transforms.ToTensor(), # テンソルに変換
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)) # [-1, 1]に正規化
     ])
-    train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    return train_loader
-
-
-# 修正後のTraining関数
-def TrainingCIFAR(model, optimizer, num_epochs=100):
+    # ImageFolderを使ってデータセットを読み込む
+    # image_pathはダウンロードした画像が格納されているディレクトリを指定
+    dataset = ImageFolder(root=image_path, transform=transform)
+    
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    
+    return dataloader
+def TrainingFFHQ(model, optimizer, num_epochs=60): # 関数名を変更
     model.train()
     device = next(model.parameters()).device
     
-    # CIFAR-10のデータローダーを取得
-    # バッチサイズを小さくするとメモリ使用量を抑えられる（例: 16や32）
-    cifar10_loader = get_cifar10_dataloader(batch_size=16) 
+    # FFHQのデータローダーを取得
+    # image_pathには、実際に画像を保存したディレクトリのパスを指定してください
+    ffhq_loader = get_ffhq_dataloader(
+        image_path="/home/naaa/.cache/kagglehub/datasets/tommykamaz/faces-dataset-small/versions/1/",  # 例: ./ffhq/images ディレクトリ
+        image_size=256,             # 今回は256x256で試す
+        batch_size=16
+    )
 
     for epoch in range(num_epochs):
         print(f"--- Epoch {epoch + 1}/{num_epochs} ---")
-        # データローダーからバッチ単位で画像を取り出す
-        # CIFAR-10はラベルも返すが、今回は使わないので '_' で受け取る
-        if epoch == 10:
-            break
-        for i, (images, _) in enumerate(cifar10_loader):
-            if i % 30 == 0:
-                print(f"i = {i}")
+        # ImageFolderは(画像, ラベル)を返すので、ラベルは使わない
+        for i, (images, _) in enumerate(ffhq_loader):
+            
+            print(f"i = {i}")
             optimizer.zero_grad()
             
             # 画像をモデルと同じデバイスに送る
@@ -198,12 +181,92 @@ def TrainingCIFAR(model, optimizer, num_epochs=100):
             loss.backward()
             optimizer.step()
 
-            if (i + 1) % 100 == 0:
-                print(f"Batch [{i+1}/{len(cifar10_loader)}], Loss: {loss.item():.6f}")
+            if (i + 1) %10  == 0:
+                print(f"Batch [{i+1}/{len(ffhq_loader)}], Loss: {loss.item():.6f}")
                 break
-
-    torch.save(model.state_dict(), 'model_weight_cifar10.pth')
+    torch.save(model.state_dict(), 'model_weight_ffhq.pth')
     print("Training finished and model saved.")
+        
+# def Training(model, optimizer):
+#     model.train()
+#     dir_path = "./dataset" # dataset内のフォルダの画像
+
+#     files_file = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
+#     for x in files_file:
+#         optimizer.zero_grad()
+#         print(x)
+#         x_0 = load_image_as_tensor(dir_path + "/" +x)
+#         x_0 = x_0.unsqueeze(0)
+#         x_0 = x_0 * 2 - 1
+#         maxx = model.timesteps
+#         minn = 0
+#         t = torch.empty(1).uniform_(minn, maxx).long()
+#         print(t)
+#         epsilon = torch.randn(x_0.shape)
+        
+#         predict = model.unet.forward(model.forward_process(x_0, t), t)
+#         criterion = torch.nn.MSELoss()
+#         loss = criterion(epsilon , predict)
+#         loss.backward()
+#         optimizer.step()
+#     torch.save(model.state_dict(), 'model_weight.pth')
+    
+# def get_cifar10_dataloader(batch_size=64):
+#     transform = transforms.Compose([
+#         transforms.Resize((32, 32)),
+#         transforms.ToTensor(),
+#         transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
+#     ])
+#     train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+
+#     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+#     return train_loader
+
+
+# # 修正後のTraining関数
+# def TrainingCIFAR(model, optimizer, num_epochs=100):
+#     model.train()
+#     device = next(model.parameters()).device
+    
+#     # CIFAR-10のデータローダーを取得
+#     # バッチサイズを小さくするとメモリ使用量を抑えられる（例: 16や32）
+#     cifar10_loader = get_cifar10_dataloader(batch_size=16) 
+
+#     for epoch in range(num_epochs):
+#         print(f"--- Epoch {epoch + 1}/{num_epochs} ---")
+#         # データローダーからバッチ単位で画像を取り出す
+#         # CIFAR-10はラベルも返すが、今回は使わないので '_' で受け取る
+#         if epoch == 10:
+#             break
+#         for i, (images, _) in enumerate(cifar10_loader):
+#             if i % 30 == 0:
+#                 print(f"i = {i}")
+#             optimizer.zero_grad()
+            
+#             # 画像をモデルと同じデバイスに送る
+#             x_0 = images.to(device)
+
+#             # タイムステップとノイズも同じデバイス上に作成
+#             t = torch.randint(0, model.timesteps, (x_0.shape[0],), device=device).long()
+#             epsilon = torch.randn_like(x_0)
+
+#             # ノイズ画像を生成
+#             noisy_image = model.forward_process(x_0, t)
+#             # ノイズを予測
+#             predicted_noise = model.unet.forward(noisy_image, t)
+            
+#             criterion = torch.nn.MSELoss()
+#             loss = criterion(epsilon, predicted_noise)
+            
+#             loss.backward()
+#             optimizer.step()
+
+#             if (i + 1) % 100 == 0:
+#                 print(f"Batch [{i+1}/{len(cifar10_loader)}], Loss: {loss.item():.6f}")
+#                 break
+
+#     torch.save(model.state_dict(), 'model_weight_cifar10.pth')
+#     print("Training finished and model saved.")
 
 
 
@@ -211,7 +274,7 @@ def load_image_as_tensor(image_path:str)->torch.Tensor:
     try:
         pil_img = Image.open(image_path)
         # 256にクリップ
-        transform_clip = transforms.CenterCrop(32)
+        transform_clip = transforms.CenterCrop(256)
         transform = transforms.ToTensor()
         tensor_img = transform(pil_img)
         tensor_img = transform_clip(tensor_img)
@@ -264,7 +327,7 @@ def InferTest():
 
     # 3. 画像生成の準備
     # Training時の画像サイズ（CenterCrop(256)）に合わせる
-    image_size = 32
+    image_size = 256
     channels = 3
     batch_size = 1 # 一度に生成する画像の枚数
 
@@ -297,15 +360,15 @@ def InferTest():
     
     save_tensor_as_image(generated_image.squeeze(0).cpu(), "generated_image.png")
 
-def Training_test():
-    model = GaussianDiffusion()
-    optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
-    Training(model, optimizer)
+# def Training_test():
+#     model = GaussianDiffusion()
+#     optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
+#     Training(model, optimizer)
 
 
 def main():
     model = GaussianDiffusion()
     optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
-    TrainingCIFAR(model, optimizer)
+    TrainingFFHQ(model, optimizer)
     #InferTest()
 main()

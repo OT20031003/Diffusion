@@ -1,3 +1,4 @@
 *.pth
 data
 passward.txt
+ffhq-dataset
