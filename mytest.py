@@ -45,7 +45,9 @@ class GaussianDiffusion(Module):
     def forward_process(self, img, timestep):
         assert(type(img) == torch.Tensor)
         noise = torch.randn_like(img)
-        img2 = torch.sqrt(self.schedule[timestep]) * img + torch.sqrt(1 - self.schedule[timestep]) *noise
+        sqrt_alpha_bar = torch.sqrt(self.alpha_bars[timestep]).view(-1, 1, 1, 1)
+        sqrt_one_minus_alpha_bar  = torch.sqrt(1 - self.alpha_bars[timestep]).view(-1, 1, 1, 1)
+        img2 = sqrt_alpha_bar * img + sqrt_one_minus_alpha_bar * noise
         return img2
     
     def bis_alpha(self, timestep):
@@ -271,7 +273,7 @@ def InferTest():
     
     # (batch_size, channels, height, width) の形状でランダムノイズを生成
     img = torch.randn((batch_size, channels, image_size, image_size), device=device)
-    
+    save_tensor_as_image(img.squeeze(0), "rand.png")
     # 勾配計算は不要なため、torch.no_grad()コンテキストで実行
     with torch.no_grad():
         # model.timesteps - 1 から 0 までループ
@@ -286,12 +288,18 @@ def InferTest():
 
     # 5. 生成した画像を保存
     # [-1, 1] の範囲で出力される画像を [0, 1] に変換し、PILで扱えるようにCPUに送る
+    if torch.isnan(img).any():
+        print("NaN detected in generated image!")
+    if torch.isinf(img).any():
+        print("Inf detected in generated image!")
+
     generated_image = (img.clamp(-1, 1) + 1) / 2
+    
     save_tensor_as_image(generated_image.squeeze(0).cpu(), "generated_image.png")
 
 def Training_test():
     model = GaussianDiffusion()
-    optimizer = torch.optim.Adam(model.parameters(), lr = 0.01)
+    optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
     Training(model, optimizer)
 
 
