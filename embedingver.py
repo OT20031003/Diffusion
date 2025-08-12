@@ -176,24 +176,108 @@ class UNet(nn.Module):
         x = self.resnet4_1(x, tmb)
         x = self.resnet4_2(x, tmb)
         x4 = x
-        
         x = self.downsample4(x)
         x = self.resnet5_1(x, tmb)
         x = self.upsample1(x)
         x = torch.cat((x4, x), dim = 1)
         x = self.resnet6_1(x, tmb)
+        x = self.resnet6_2(x, tmb)  # <--- この行を追加
         x = self.upsample2(x)
         x = torch.cat((x3, x), dim = 1)
         x = self.resnet7_1(x, tmb)
+        x = self.resnet7_2(x, tmb)  # <--- この行を追加
         x = self.upsample3(x)
         x = torch.cat((x2, x), dim = 1)
         x = self.resnet8_1(x, tmb)
+        x = self.resnet8_2(x, tmb)  # <--- この行を追加
         x = self.upsample4(x)
         x = torch.cat((x1, x), dim = 1)
         x = self.resnet9_1(x, tmb)
+        x = self.resnet9_2(x, tmb)  # <--- この行を追加
         x = self.conv_last(x)
         return x
+        
+        
+class SmallUNet(nn.Module):
+    def __init__(self, dim, model_channel=64, timeembedding_dim=128):
+        super().__init__()
+        
+        # --- 1. 初期畳み込み ---
+        self.conv_0 = nn.Conv2d(dim, model_channel, 3, 1, padding=1)
+        dim = model_channel
 
+        # --- 2. ダウンサンプリングパス (2段階) ---
+        # Level 1: 32x32 -> 16x16
+        self.resnet1_1 = ResNet(dim, timeembedding_dim=timeembedding_dim)
+        self.resnet1_2 = ResNet(dim, timeembedding_dim=timeembedding_dim)
+        self.downsample1 = Downsample(dim, dim*2)
+        dim *= 2 # dim is now 128
+
+        # Level 2: 16x16 -> 8x8
+        self.resnet2_1 = ResNet(dim, timeembedding_dim=timeembedding_dim)
+        self.resnet2_2 = ResNet(dim, timeembedding_dim=timeembedding_dim)
+        self.downsample2 = Downsample(dim, dim * 2)
+        dim *= 2 # dim is now 256
+
+        # --- 3. ボトルネック ---
+        self.resnet_bottleneck1 = ResNet(dim, timeembedding_dim=timeembedding_dim)
+        self.resnet_bottleneck2 = ResNet(dim, timeembedding_dim=timeembedding_dim)
+
+        # --- 4. アップサンプリングパス (2段階) ---
+        # Level 2: 8x8 -> 16x16
+        self.upsample1 = Upsample(dim, dim//2)
+        dim //= 2 # dim is now 128
+        self.resnet3_1 = ResNet(dim*2, timeembedding_dim=timeembedding_dim)
+        self.resnet3_2 = ResNet(dim*2, timeembedding_dim=timeembedding_dim)
+
+        # Level 1: 16x16 -> 32x32
+        self.upsample2 = Upsample(dim*2, dim//2)
+        dim //= 2 # dim is now 64
+        self.resnet4_1 = ResNet(dim*2, timeembedding_dim=timeembedding_dim)
+        self.resnet4_2 = ResNet(dim*2, timeembedding_dim=timeembedding_dim)
+
+        # --- 5. 最終層 ---
+        assert(model_channel == dim)
+        self.conv_last = nn.Conv2d(dim*2, 3, 3, 1, padding=1)
+        self.sinu = SinusoidalPositionEmbeddings(dim=timeembedding_dim)
+        
+
+    def forward(self, x, timestep):
+        tmb = self.sinu(timestep)
+        
+        # 初期畳み込み
+        x = self.conv_0(x)
+
+        # ダウンサンプリング
+        x = self.resnet1_1(x, tmb)
+        x = self.resnet1_2(x, tmb)
+        x1 = x # 32x32
+        
+        x = self.downsample1(x)
+        x = self.resnet2_1(x, tmb)
+        x = self.resnet2_2(x, tmb)
+        x2 = x # 16x16
+
+        x = self.downsample2(x) # -> 8x8
+
+        # ボトルネック
+        x = self.resnet_bottleneck1(x, tmb)
+        x = self.resnet_bottleneck2(x, tmb)
+
+        # アップサンプリング
+        x = self.upsample1(x) # -> 16x16
+        x = torch.cat((x2, x), dim = 1)
+        x = self.resnet3_1(x, tmb)
+        x = self.resnet3_2(x, tmb)
+
+        x = self.upsample2(x) # -> 32x32
+        x = torch.cat((x1, x), dim = 1)
+        x = self.resnet4_1(x, tmb)
+        x = self.resnet4_2(x, tmb)
+        
+        # 最終出力
+        x = self.conv_last(x)
+        return x
 
         
 

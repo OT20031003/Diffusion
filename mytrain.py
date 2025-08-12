@@ -5,7 +5,7 @@ from torchvision import transforms
 import torchvision
 from torch.utils.data import DataLoader
 import random
-from embedingver import ResNet, Downsample, Upsample, UNet, SinusoidalPositionEmbeddings
+from embedingver import ResNet, Downsample, Upsample, UNet, SinusoidalPositionEmbeddings, SmallUNet
 import os
 def make_beta_schedule(timesteps, start_beta, end_beta):
     a = (end_beta - start_beta ) /timesteps
