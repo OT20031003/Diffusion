@@ -21,17 +21,19 @@ class GaussianDiffusion(Module):
             end_beta = 0.22
     ):
         super().__init__()
-        beta_schedules = make_beta_schedule(timesteps, start_beta, end_beta)
-        alpha_schedules = []
+        self.beta_schedules = make_beta_schedule(timesteps, start_beta, end_beta)
+        self.alpha_schedules = []
         for i in range(timesteps):
-            alpha_schedules.append(1 - beta_schedules[i])
-        alpha_bar_schedules = []
+            self.alpha_schedules.append(1 - self.beta_schedules[i])
+        self.alpha_bar_schedules = []
         tmp = 1
         for i in range(timesteps):
-            alpha_bar_schedules.append(tmp * alpha_schedules[i])
-            tmp *= alpha_schedules[i]
+            self.alpha_bar_schedules.append(tmp * self.alpha_schedules[i])
+            tmp *= self.alpha_schedules[i]
         #print(alpha_bar_schedules)
-        self.schedule = torch.tensor(alpha_bar_schedules)
+        self.schedule = torch.tensor(self.alpha_bar_schedules)
+        self.unet = UNet(3, 64, 128)
+
         #print(type(self.schedule))
     
     def forward_process(self, img, timestep):
@@ -40,8 +42,79 @@ class GaussianDiffusion(Module):
         img2 = torch.sqrt(self.schedule[timestep]) * img + torch.sqrt(1 - self.schedule[timestep]) *noise
         return img2
     
-    def reverse_process(self, img, timesteps):
-        pass
+    def bis_alpha(self, timestep):
+        # timestep : tensor
+        # index を返す
+        ts = float(timestep[0])
+        left = 0
+        right = len(self.alpha_schedules) 
+        while right - left > 1:
+            mid = right + left
+            mid //= 2
+            if ts < self.alpha_schedules[mid]:
+                left = mid
+            elif ts > self.alpha_schedules[mid]:
+                right = mid
+            else:
+                return mid
+        return left
+    
+    def bis_beta(self, timestep):
+        # timestep : tensor
+        # index を返す
+        ts = float(timestep[0])
+        left = -1
+        right = len(self.beta_schedules) - 1
+        while right - left > 1:
+            mid = right + left
+            mid //= 2
+            if ts > self.beta_schedules[mid]:
+                left = mid
+            elif ts < self.beta_schedules[mid]:
+                right = mid
+            else:
+                return mid
+        return right
+
+    def bis_alph_bar(self, timestep):
+        # timestep : tensor
+        # index を返す
+        ts = float(timestep[0])
+        left = 0
+        right = len(self.alpha_bar_schedules)
+        while right - left > 1:
+            mid = right + left
+            mid //= 2
+            if ts < self.alpha_bar_schedules[mid]:
+                left = mid
+            elif ts > self.alpha_bar_schedules[mid]:
+                right = mid
+            else:
+                return mid
+        return left
+
+    def reverse_onestep(self, img, timestep):
+        # 1ステップの逆拡散
+        t = int(timestep[0])
+        epsilon_theta = self.unet.forward(img, timestep)
+        alpha_t = torch.tensor(self.alpha_schedules[t])
+        alpha_bar_t = torch.tensor(self.alpha_bar_schedules[t])
+        z = torch.randn(img.shape)
+        beta_t = torch.tensor(self.beta_schedules[t])
+        sigma_t = torch.sqrt(beta_t)
+        return (1/(torch.sqrt(alpha_bar_t))) * (img - ((1 - alpha_t)/ (torch.sqrt(1 - alpha_bar_t))) * epsilon_theta ) + sigma_t *z
+    
+
+
+    def reverse_process(self, img, timestep):
+        # timestepはtensor([10])の形式
+        # timestep->0になるまで逆拡散する
+        ts = timestep[0]
+        while ts >= 0:
+            img = self.reverse_onestep(img, ts)
+            ts -= 1
+    
+    
      
 def load_image_as_tensor(image_path:str)->torch.Tensor:
     try:
@@ -91,5 +164,6 @@ def main():
     # ここから[1,3,256,256]
     u = UNet(3, 64, timeembedding_dim=128)
     uf = u.forward(inp_img, torch.Tensor([10]))
-    save_tensor_as_image(uf.squeeze(0), "./c.png")
+    gu = g.reverse_onestep(inp_img, torch.Tensor([10]))
+    save_tensor_as_image(gu.squeeze(0), "./c.png")
 main()

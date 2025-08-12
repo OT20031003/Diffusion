@@ -155,25 +155,26 @@ class UNet(nn.Module):
 
 
     def forward(self, x, timestep):
+        # timestep: torch.Tensor
         tmb = self.sinu(timestep)
         print(f"tmb.shape = {tmb.shape}")
         x = self.conv_0(x)
         x = self.resnet1_1(x, tmb)
-        #x = self.resnet1_2(x)
+        x = self.resnet1_2(x, tmb)
         x1 = x
         print(f"x1.shape = {x1.shape}")
         x = self.downsample1(x)
         x = self.resnet2_1(x, tmb)
-        #x = self.resnet2_2(x)
+        x = self.resnet2_2(x, tmb)
         x2 = x
         print(f"x2.shape = {x2.shape}")
         x = self.downsample2(x)
         x = self.resnet3_1(x, tmb)
-        #x = self.resnet3_2(x)
+        x = self.resnet3_2(x, tmb)
         x3 = x
         x = self.downsample3(x)
         x = self.resnet4_1(x, tmb)
-        #x = self.resnet4_2(x)
+        x = self.resnet4_2(x, tmb)
         x4 = x
         x = self.downsample4(x)
         x = self.resnet5_1(x, tmb)
