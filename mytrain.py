@@ -304,8 +304,8 @@ def Training_test():
 
 
 def main():
-    # model = GaussianDiffusion()
-    # optimizer = torch.optim.Adam(model.parameters(), lr = 0.01)
-    # TrainingCIFAR(model, optimizer)
-    InferTest()
+    model = GaussianDiffusion()
+    optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
+    TrainingCIFAR(model, optimizer)
+    #InferTest()
 main()
