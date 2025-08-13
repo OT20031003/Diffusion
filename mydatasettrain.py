@@ -43,9 +43,10 @@ class GaussianDiffusion(Module):
         self.timesteps = timesteps
         #print(type(self.schedule))
     
-    def forward_process(self, img, timestep):
+    def forward_process(self, img, timestep, noise = None):
         assert(type(img) == torch.Tensor)
-        noise = torch.randn_like(img)
+        if noise == None:
+            noise = torch.randn_like(img)
         sqrt_alpha_bar = torch.sqrt(self.alpha_bars[timestep]).view(-1, 1, 1, 1)
         sqrt_one_minus_alpha_bar  = torch.sqrt(1 - self.alpha_bars[timestep]).view(-1, 1, 1, 1)
         img2 = sqrt_alpha_bar * img + sqrt_one_minus_alpha_bar * noise
@@ -54,27 +55,58 @@ class GaussianDiffusion(Module):
     
 
     def reverse_onestep(self, img, timestep):
-        # 1ステップの逆拡散
-        t = int(timestep[0])
+        """ 1ステップの逆拡散 """
+        # timestep は torch.tensor([999]) のような形式で渡されることを想定
+        
+        # 予測されたノイズを取得
         epsilon_theta = self.unet.forward(img, timestep)
-        alpha_t = self.alphas[t] #バッファ
-        alpha_bar_t = self.alpha_bars[t]
-        z = torch.randn_like(img) # deviceも同じ
-        if t == 0:
-            z = torch.zeros_like(img) # 最後のステップはノイズｗ加えない
-        beta_t = self.betas[t]
+        
+        # 各種パラメータを取得
+        alpha_t = self.alphas[timestep]
+        alpha_bar_t = self.alpha_bars[timestep]
+        beta_t = self.betas[timestep]
+        
+        # ノイズを生成
+        z = torch.randn_like(img)
+        
+        # 最後のステップ (t=0) ではノイズを加えない
+        if timestep.item() == 0:
+            z = torch.zeros_like(img)
+            
         sigma_t = torch.sqrt(beta_t)
-        return (1/(torch.sqrt(alpha_bar_t))) * (img - ((1 - alpha_t)/ (torch.sqrt(1 - alpha_bar_t))) * epsilon_theta ) + sigma_t *z
-    
-
+        
+        # DDPMの論文に基づいた正しいサンプリング式に修正
+        # 誤: 1/torch.sqrt(alpha_bar_t)
+        # 正: 1/torch.sqrt(alpha_t)
+        term1 = 1 / torch.sqrt(alpha_t)
+        term2 = (img - ((1 - alpha_t) / torch.sqrt(1 - alpha_bar_t)) * epsilon_theta)
+        
+        return term1 * term2 + sigma_t * z
 
     def reverse_process(self, img, timestep):
-        # timestepはtensor([10])の形式
-        # timestep->0になるまで逆拡散する
-        ts = timestep[0]
-        while ts >= 0:
-            img = self.reverse_onestep(img, ts)
-            ts -= 1
+        """ timestepから0になるまで逆拡散を繰り返す """
+        
+        # 正しい型チェック (isinstanceを使用)
+        save_tensor_as_image(img.squeeze(0), "./result/ongo_start.png")
+        if not isinstance(timestep, torch.Tensor):
+            print(f"エラー: timestepはTensorである必要がありますが、{type(timestep)}が渡されました。")
+            raise TypeError("timestep must be a torch.Tensor")
+
+        # .item() を使ってTensorからPythonの数値を取得
+        ts = timestep.item()
+
+        # ts から 0 までループ
+        # Python 3のrangeでは逆順のループは range(start, stop, step) を使う
+        for current_t in range(ts-1, -1, -1):
+            # 現在のタイムステップをTensorに変換して渡す
+            current_t_tensor = torch.tensor([current_t], device=img.device)
+            img = self.reverse_onestep(img, current_t_tensor)
+            if current_t % 250 == 0 or current_t == ts - 1:
+                print(f"current_t = {current_t}")
+                save_tensor_as_image(img.squeeze(0), "./result/ongo" + str(current_t)+".png")
+            
+        return img
+
 
 
         
@@ -98,9 +130,10 @@ def Training(model, optimizer):
             print(t)
             epsilon = torch.randn(x_0.shape)
             
-            predict = model.unet.forward(model.forward_process(x_0, t), t)
+            predict = model.unet.forward(model.forward_process(x_0, t, noise=epsilon), t)
             criterion = torch.nn.MSELoss()
             loss = criterion(epsilon , predict)
+            print(f"loss = {loss}")
             loss.backward()
             optimizer.step()
         epoch -= 1
@@ -156,7 +189,7 @@ def InferTest():
     # Training関数で保存されるファイル名 'model_weight.pth' を指定
     # map_location=device を使うことで、GPUがない環境でもGPUで学習したモデルを読み込める
     try:
-        model.load_state_dict(torch.load('model_weight_cifar10.pth', map_location=device))
+        model.load_state_dict(torch.load('model_weight.pth', map_location=device))
     except FileNotFoundError:
         print("Error: 'model_weight.pth' not found.")
         print("Please train the model first by uncommenting and running the Training() function in main().")
@@ -180,23 +213,25 @@ def InferTest():
     # 勾配計算は不要なため、torch.no_grad()コンテキストで実行
     with torch.no_grad():
         # model.timesteps - 1 から 0 までループ
-        for t in reversed(range(0, model.timesteps)):
-            # 現在のタイムステップをモデル入力用のテンソル形式に変換
-            timestep = torch.full((batch_size,), t, device=device, dtype=torch.long)
+        tss = torch.tensor([model.timesteps])
+        img2 = model.reverse_process(img, tss)
+        # for t in reversed(range(0, model.timesteps)):
+        #     # 現在のタイムステップをモデル入力用のテンソル形式に変換
+        #     timestep = torch.full((batch_size,), t, device=device, dtype=torch.long)
             
-            # 1ステップ分のノイズ除去を実行し、画像を更新
-            img = model.reverse_onestep(img, timestep)
+        #     # 1ステップ分のノイズ除去を実行し、画像を更新
+        #     img = model.reverse_onestep(img, timestep)
     
     print("Image generation complete.")
 
     # 5. 生成した画像を保存
     # [-1, 1] の範囲で出力される画像を [0, 1] に変換し、PILで扱えるようにCPUに送る
-    if torch.isnan(img).any():
+    if torch.isnan(img2).any():
         print("NaN detected in generated image!")
-    if torch.isinf(img).any():
+    if torch.isinf(img2).any():
         print("Inf detected in generated image!")
 
-    generated_image = (img.clamp(-1, 1) + 1) / 2
+    generated_image = (img2.clamp(-1, 1) + 1) / 2
     
     save_tensor_as_image(generated_image.squeeze(0).cpu(), "generated_image.png")
 
