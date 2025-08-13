@@ -1,5 +1,4 @@
-Image successfully saved to ./a.png
-tmb.shape = torch.Size([1, 128])
-x1.shape = torch.Size([1, 64, 256, 256])
-x2.shape = torch.Size([1, 128, 128, 128])
-Image successfully saved to ./c.png
+code execute!!
+--- Epoch 1/60 ---
+i = 0
+i = 1

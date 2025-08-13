@@ -367,6 +367,7 @@ def InferTest():
 
 
 def main():
+    print("code execute!!")
     model = GaussianDiffusion()
     optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
     TrainingFFHQ(model, optimizer)
