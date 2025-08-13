@@ -1,0 +1,243 @@
+code execute!!
+Using device: cuda
+Generating image from pure noise...
+Image successfully saved to rand.png
+Image successfully saved to ./result/ongo_start.png
+current_t = 999
+Image successfully saved to ./result/ongo999.png
+current_t = 998
+Image successfully saved to ./result/ongo998.png
+current_t = 997
+Image successfully saved to ./result/ongo997.png
+current_t = 996
+Image successfully saved to ./result/ongo996.png
+current_t = 995
+Image successfully saved to ./result/ongo995.png
+current_t = 994
+Image successfully saved to ./result/ongo994.png
+current_t = 993
+Image successfully saved to ./result/ongo993.png
+current_t = 992
+Image successfully saved to ./result/ongo992.png
+current_t = 991
+Image successfully saved to ./result/ongo991.png
+current_t = 990
+Image successfully saved to ./result/ongo990.png
+current_t = 989
+Image successfully saved to ./result/ongo989.png
+current_t = 988
+Image successfully saved to ./result/ongo988.png
+current_t = 987
+Image successfully saved to ./result/ongo987.png
+current_t = 986
+Image successfully saved to ./result/ongo986.png
+current_t = 985
+Image successfully saved to ./result/ongo985.png
+current_t = 984
+Image successfully saved to ./result/ongo984.png
+current_t = 983
+Image successfully saved to ./result/ongo983.png
+current_t = 982
+Image successfully saved to ./result/ongo982.png
+current_t = 981
+Image successfully saved to ./result/ongo981.png
+current_t = 980
+Image successfully saved to ./result/ongo980.png
+current_t = 979
+Image successfully saved to ./result/ongo979.png
+current_t = 978
+Image successfully saved to ./result/ongo978.png
+current_t = 977
+Image successfully saved to ./result/ongo977.png
+current_t = 976
+Image successfully saved to ./result/ongo976.png
+current_t = 975
+Image successfully saved to ./result/ongo975.png
+current_t = 974
+Image successfully saved to ./result/ongo974.png
+current_t = 973
+Image successfully saved to ./result/ongo973.png
+current_t = 972
+Image successfully saved to ./result/ongo972.png
+current_t = 971
+Image successfully saved to ./result/ongo971.png
+current_t = 970
+Image successfully saved to ./result/ongo970.png
+current_t = 969
+Image successfully saved to ./result/ongo969.png
+current_t = 968
+Image successfully saved to ./result/ongo968.png
+current_t = 967
+Image successfully saved to ./result/ongo967.png
+current_t = 966
+Image successfully saved to ./result/ongo966.png
+current_t = 965
+Image successfully saved to ./result/ongo965.png
+current_t = 964
+Image successfully saved to ./result/ongo964.png
+current_t = 963
+Image successfully saved to ./result/ongo963.png
+current_t = 962
+Image successfully saved to ./result/ongo962.png
+current_t = 961
+Image successfully saved to ./result/ongo961.png
+current_t = 960
+Image successfully saved to ./result/ongo960.png
+current_t = 959
+Image successfully saved to ./result/ongo959.png
+current_t = 958
+Image successfully saved to ./result/ongo958.png
+current_t = 957
+Image successfully saved to ./result/ongo957.png
+current_t = 956
+Image successfully saved to ./result/ongo956.png
+current_t = 955
+Image successfully saved to ./result/ongo955.png
+current_t = 954
+Image successfully saved to ./result/ongo954.png
+current_t = 953
+Image successfully saved to ./result/ongo953.png
+current_t = 952
+Image successfully saved to ./result/ongo952.png
+current_t = 951
+Image successfully saved to ./result/ongo951.png
+current_t = 950
+Image successfully saved to ./result/ongo950.png
+current_t = 949
+Image successfully saved to ./result/ongo949.png
+current_t = 948
+Image successfully saved to ./result/ongo948.png
+current_t = 947
+Image successfully saved to ./result/ongo947.png
+current_t = 946
+Image successfully saved to ./result/ongo946.png
+current_t = 945
+Image successfully saved to ./result/ongo945.png
+current_t = 944
+Image successfully saved to ./result/ongo944.png
+current_t = 943
+Image successfully saved to ./result/ongo943.png
+current_t = 942
+Image successfully saved to ./result/ongo942.png
+current_t = 941
+Image successfully saved to ./result/ongo941.png
+current_t = 940
+Image successfully saved to ./result/ongo940.png
+current_t = 939
+Image successfully saved to ./result/ongo939.png
+current_t = 938
+Image successfully saved to ./result/ongo938.png
+current_t = 937
+Image successfully saved to ./result/ongo937.png
+current_t = 936
+Image successfully saved to ./result/ongo936.png
+current_t = 935
+Image successfully saved to ./result/ongo935.png
+current_t = 934
+Image successfully saved to ./result/ongo934.png
+current_t = 933
+Image successfully saved to ./result/ongo933.png
+current_t = 932
+Image successfully saved to ./result/ongo932.png
+current_t = 931
+Image successfully saved to ./result/ongo931.png
+current_t = 930
+Image successfully saved to ./result/ongo930.png
+current_t = 929
+Image successfully saved to ./result/ongo929.png
+current_t = 928
+Image successfully saved to ./result/ongo928.png
+current_t = 927
+Image successfully saved to ./result/ongo927.png
+current_t = 926
+Image successfully saved to ./result/ongo926.png
+current_t = 925
+Image successfully saved to ./result/ongo925.png
+current_t = 924
+Image successfully saved to ./result/ongo924.png
+current_t = 923
+Image successfully saved to ./result/ongo923.png
+current_t = 922
+Image successfully saved to ./result/ongo922.png
+current_t = 921
+Image successfully saved to ./result/ongo921.png
+current_t = 920
+Image successfully saved to ./result/ongo920.png
+current_t = 919
+Image successfully saved to ./result/ongo919.png
+current_t = 918
+Image successfully saved to ./result/ongo918.png
+current_t = 917
+Image successfully saved to ./result/ongo917.png
+current_t = 916
+Image successfully saved to ./result/ongo916.png
+current_t = 915
+Image successfully saved to ./result/ongo915.png
+current_t = 914
+Image successfully saved to ./result/ongo914.png
+current_t = 913
+Image successfully saved to ./result/ongo913.png
+current_t = 912
+Image successfully saved to ./result/ongo912.png
+current_t = 911
+Image successfully saved to ./result/ongo911.png
+current_t = 910
+Image successfully saved to ./result/ongo910.png
+current_t = 909
+Image successfully saved to ./result/ongo909.png
+current_t = 908
+Image successfully saved to ./result/ongo908.png
+current_t = 907
+Image successfully saved to ./result/ongo907.png
+current_t = 906
+Image successfully saved to ./result/ongo906.png
+current_t = 905
+Image successfully saved to ./result/ongo905.png
+current_t = 904
+Image successfully saved to ./result/ongo904.png
+current_t = 903
+Image successfully saved to ./result/ongo903.png
+current_t = 902
+Image successfully saved to ./result/ongo902.png
+current_t = 901
+Image successfully saved to ./result/ongo901.png
+current_t = 900
+Image successfully saved to ./result/ongo900.png
+current_t = 850
+Image successfully saved to ./result/ongo850.png
+current_t = 800
+Image successfully saved to ./result/ongo800.png
+current_t = 750
+Image successfully saved to ./result/ongo750.png
+current_t = 700
+Image successfully saved to ./result/ongo700.png
+current_t = 650
+Image successfully saved to ./result/ongo650.png
+current_t = 600
+Image successfully saved to ./result/ongo600.png
+current_t = 550
+Image successfully saved to ./result/ongo550.png
+current_t = 500
+Image successfully saved to ./result/ongo500.png
+current_t = 450
+Image successfully saved to ./result/ongo450.png
+current_t = 400
+Image successfully saved to ./result/ongo400.png
+current_t = 350
+Image successfully saved to ./result/ongo350.png
+current_t = 300
+Image successfully saved to ./result/ongo300.png
+current_t = 250
+Image successfully saved to ./result/ongo250.png
+current_t = 200
+Image successfully saved to ./result/ongo200.png
+current_t = 150
+Image successfully saved to ./result/ongo150.png
+current_t = 100
+Image successfully saved to ./result/ongo100.png
+current_t = 50
+Image successfully saved to ./result/ongo50.png
+current_t = 0
+Image successfully saved to ./result/ongo0.png
+Image generation complete.
+Image successfully saved to generated_image.png

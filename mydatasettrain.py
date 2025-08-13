@@ -103,6 +103,10 @@ class GaussianDiffusion(Module):
             img = self.reverse_onestep(img, current_t_tensor)
             if current_t >= 950 or current_t == ts - 2:
                 print(f"current_t = {current_t}")
+                if torch.isnan(img).any():
+                    print("NaN detected in generated image!")
+                if torch.isinf(img).any():
+                    print("Inf detected in generated image!")
                 save_tensor_as_image(img.squeeze(0), "./result/ongo" + str(current_t)+".png")
             
         return img

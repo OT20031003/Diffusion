@@ -47,9 +47,11 @@ class GaussianDiffusion(Module):
         assert(type(img) == torch.Tensor)
         if noise == None:
             noise = torch.randn_like(img)
+        noise = noise.clip(-1.0, 1.0)
         sqrt_alpha_bar = torch.sqrt(self.alpha_bars[timestep]).view(-1, 1, 1, 1)
         sqrt_one_minus_alpha_bar  = torch.sqrt(1 - self.alpha_bars[timestep]).view(-1, 1, 1, 1)
         img2 = sqrt_alpha_bar * img + sqrt_one_minus_alpha_bar * noise
+        
         return img2
     
     
@@ -72,16 +74,15 @@ class GaussianDiffusion(Module):
         # 最後のステップ (t=0) ではノイズを加えない
         if timestep.item() == 0:
             z = torch.zeros_like(img)
-            
+        z = z.clip(-1.0, 1.0)    
         sigma_t = torch.sqrt(beta_t)
         
-        # DDPMの論文に基づいた正しいサンプリング式に修正
-        # 誤: 1/torch.sqrt(alpha_bar_t)
-        # 正: 1/torch.sqrt(alpha_t)
+        
         term1 = 1 / torch.sqrt(alpha_t)
         term2 = (img - ((1 - alpha_t) / torch.sqrt(1 - alpha_bar_t)) * epsilon_theta)
-        
-        return term1 * term2 + sigma_t * z
+        ans = term1 * term2 + sigma_t * z
+        ans = ans.clip(-1.0, 1.0)
+        return ans
 
     def reverse_process(self, img, timestep):
         """ timestepから0になるまで逆拡散を繰り返す """
@@ -103,6 +104,11 @@ class GaussianDiffusion(Module):
             img = self.reverse_onestep(img, current_t_tensor)
             if current_t %50==0  or current_t >= 900:
                 print(f"current_t = {current_t}")
+                if torch.isnan(img).any():
+                    print("NaN detected in generated image!")
+                if torch.isinf(img).any():
+                    print("Inf detected in generated image!")
+                
                 save_tensor_as_image(img.squeeze(0), "./result/ongo" + str(current_t)+".png")
             
         return img
@@ -209,6 +215,8 @@ def InferTest():
     
     # (batch_size, channels, height, width) の形状でランダムノイズを生成
     img = torch.randn((batch_size, channels, image_size, image_size), device=device)
+    img =  load_image_as_tensor("./a.png").unsqueeze(0).to(device)
+    img = 2*img - 1
     save_tensor_as_image(img.squeeze(0), "rand.png")
     # 勾配計算は不要なため、torch.no_grad()コンテキストで実行
     with torch.no_grad():
