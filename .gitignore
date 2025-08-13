@@ -2,3 +2,7 @@
 data
 passward.txt
 ffhq-dataset
+result
+dataset
+*.jpg
+*.png

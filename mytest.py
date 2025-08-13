@@ -21,8 +21,8 @@ class GaussianDiffusion(Module):
     def __init__(
             self, 
             timesteps = 1000, 
-            start_beta = 0.01,
-            end_beta = 0.22
+            start_beta = 0.0001,
+            end_beta = 0.02
     ):
         super().__init__()
         self.beta_schedules = make_beta_schedule(timesteps, start_beta, end_beta)
@@ -101,7 +101,7 @@ class GaussianDiffusion(Module):
             # 現在のタイムステップをTensorに変換して渡す
             current_t_tensor = torch.tensor([current_t], device=img.device)
             img = self.reverse_onestep(img, current_t_tensor)
-            if current_t % 250 == 0 or current_t == ts - 1:
+            if current_t %50==0  or current_t >= 900:
                 print(f"current_t = {current_t}")
                 save_tensor_as_image(img.squeeze(0), "./result/ongo" + str(current_t)+".png")
             
@@ -231,9 +231,9 @@ def InferTest():
     if torch.isinf(img2).any():
         print("Inf detected in generated image!")
 
-    generated_image = (img2.clamp(-1, 1) + 1) / 2
+    #generated_image = (img2.clamp(-1, 1) + 1) / 2
     
-    save_tensor_as_image(generated_image.squeeze(0).cpu(), "generated_image.png")
+    save_tensor_as_image(img2.squeeze(0).cpu(), "generated_image.png")
 
 def Training_test():
     model = GaussianDiffusion()
