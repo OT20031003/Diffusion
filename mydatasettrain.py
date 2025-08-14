@@ -8,108 +8,8 @@ import random
 from embedingver import ResNet, Downsample, Upsample, UNet, SinusoidalPositionEmbeddings, SmallUNet
 import os
 from torchvision.datasets import ImageFolder # ImageFolderをインポート
-def make_beta_schedule(timesteps, start_beta, end_beta):
-    a = (end_beta - start_beta ) /timesteps
-    #y = a * time + start_beta
-    sch = []
-    for t in range(timesteps):
-        assert(a*t + start_beta < 1)
-        sch.append(a * t + start_beta)
-    return sch  
+from DDPM import load_image_as_tensor, save_tensor_as_image, GaussianDiffusion
 
-class GaussianDiffusion(Module):
-    def __init__(
-            self, 
-            timesteps = 1000, 
-            start_beta = 0.0001,
-            end_beta = 0.02
-    ):
-        super().__init__()
-        self.beta_schedules = make_beta_schedule(timesteps, start_beta, end_beta)
-        self.alpha_schedules = []
-        for i in range(timesteps):
-            self.alpha_schedules.append(1 - self.beta_schedules[i])
-        self.alpha_bar_schedules = []
-        tmp = 1
-        for i in range(timesteps):
-            self.alpha_bar_schedules.append(tmp * self.alpha_schedules[i])
-            tmp *= self.alpha_schedules[i]
-        #print(alpha_bar_schedules)
-        self.schedule = torch.tensor(self.alpha_bar_schedules)
-        self.register_buffer('betas', torch.tensor(self.beta_schedules))
-        self.register_buffer('alphas', torch.tensor(self.alpha_schedules))
-        self.register_buffer('alpha_bars', torch.tensor(self.alpha_bar_schedules))
-        self.unet = UNet(3, 64, 128)
-        self.timesteps = timesteps
-        #print(type(self.schedule))
-    
-    def forward_process(self, img, timestep, noise = None):
-        assert(type(img) == torch.Tensor)
-        if noise == None:
-            noise = torch.randn_like(img)
-        sqrt_alpha_bar = torch.sqrt(self.alpha_bars[timestep]).view(-1, 1, 1, 1)
-        sqrt_one_minus_alpha_bar  = torch.sqrt(1 - self.alpha_bars[timestep]).view(-1, 1, 1, 1)
-        img2 = sqrt_alpha_bar * img + sqrt_one_minus_alpha_bar * noise
-        return img2
-    
-    
-
-    def reverse_onestep(self, img, timestep):
-        """ 1ステップの逆拡散 """
-        # timestep は torch.tensor([999]) のような形式で渡されることを想定
-        
-        # 予測されたノイズを取得
-        epsilon_theta = self.unet.forward(img, timestep)
-        
-        # 各種パラメータを取得
-        alpha_t = self.alphas[timestep]
-        alpha_bar_t = self.alpha_bars[timestep]
-        beta_t = self.betas[timestep]
-        
-        # ノイズを生成
-        z = torch.randn_like(img)
-        
-        # 最後のステップ (t=0) ではノイズを加えない
-        if timestep.item() == 0:
-            z = torch.zeros_like(img)
-            
-        sigma_t = torch.sqrt(beta_t)
-        
-        # DDPMの論文に基づいた正しいサンプリング式に修正
-        # 誤: 1/torch.sqrt(alpha_bar_t)
-        # 正: 1/torch.sqrt(alpha_t)
-        term1 = 1 / torch.sqrt(alpha_t)
-        term2 = (img - ((1 - alpha_t) / torch.sqrt(1 - alpha_bar_t)) * epsilon_theta)
-        
-        return term1 * term2 + sigma_t * z
-
-    def reverse_process(self, img, timestep):
-        """ timestepから0になるまで逆拡散を繰り返す """
-        
-        # 正しい型チェック (isinstanceを使用)
-        save_tensor_as_image(img.squeeze(0), "./result/ongo_start.png")
-        if not isinstance(timestep, torch.Tensor):
-            print(f"エラー: timestepはTensorである必要がありますが、{type(timestep)}が渡されました。")
-            raise TypeError("timestep must be a torch.Tensor")
-
-        # .item() を使ってTensorからPythonの数値を取得
-        ts = timestep.item()
-
-        # ts から 0 までループ
-        # Python 3のrangeでは逆順のループは range(start, stop, step) を使う
-        for current_t in range(ts-1, -1, -1):
-            # 現在のタイムステップをTensorに変換して渡す
-            current_t_tensor = torch.tensor([current_t], device=img.device)
-            img = self.reverse_onestep(img, current_t_tensor)
-            if current_t >= 950 or current_t == ts - 2:
-                print(f"current_t = {current_t}")
-                if torch.isnan(img).any():
-                    print("NaN detected in generated image!")
-                if torch.isinf(img).any():
-                    print("Inf detected in generated image!")
-                save_tensor_as_image(img.squeeze(0), "./result/ongo" + str(current_t)+".png")
-            
-        return img
 
 
 
@@ -147,37 +47,6 @@ def Training(model, optimizer):
 
 
 
-def load_image_as_tensor(image_path:str)->torch.Tensor:
-    try:
-        pil_img = Image.open(image_path)
-        # 256にクリップ
-        transform_clip = transforms.CenterCrop(256)
-        transform = transforms.ToTensor()
-        tensor_img = transform(pil_img)
-        tensor_img = transform_clip(tensor_img)
-
-        return tensor_img
-    except FileNotFoundError:
-        print(f"The file at {image_path} was not found")
-
-def save_tensor_as_image(tensor: torch.Tensor, save_path: str):
-    try:
-        # DDPMの出力が[-1, 1]の場合、[0, 1]に正規化する
-        # (x + 1) / 2 は [-1, 1]の値を [0, 1]に変換する一般的な方法です。
-        if tensor.min() >= -1.0 and tensor.max() <= 1.0:
-            tensor = (tensor + 1) / 2.0
-            
-        # ToPILImage()は、(C, H, W)のテンソルをPIL画像オブジェクトに変換します。
-        # 入力テンソルの値は、0.0-1.0の範囲である必要があります。
-        to_pil = transforms.ToPILImage()
-        pil_image = to_pil(tensor)
-        
-        # PILのsaveメソッドで画像を保存
-        pil_image.save(save_path)
-        print(f"Image successfully saved to {save_path}")
-        
-    except Exception as e:
-        print(f"An error occurred while saving the image: {e}")
 
 def InferTest():
     """
@@ -213,6 +82,8 @@ def InferTest():
     
     # (batch_size, channels, height, width) の形状でランダムノイズを生成
     img = torch.randn((batch_size, channels, image_size, image_size), device=device)
+    img =  load_image_as_tensor("./a.png").unsqueeze(0).to(device)
+    img = 2*img - 1
     save_tensor_as_image(img.squeeze(0), "rand.png")
     # 勾配計算は不要なため、torch.no_grad()コンテキストで実行
     with torch.no_grad():
@@ -249,6 +120,6 @@ def main():
     print("code execute!!")
     # model = GaussianDiffusion()
     # optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
-    Training_test()
-    #InferTest()
+    #Training_test()
+    InferTest()
 main()
