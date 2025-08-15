@@ -9,7 +9,7 @@ from embedingver import ResNet, Downsample, Upsample, UNet, SinusoidalPositionEm
 import os
 from torchvision.datasets import ImageFolder # ImageFolderをインポート
 from DDPM import load_image_as_tensor, save_tensor_as_image, GaussianDiffusion
-
+import SmallDDPM
 
 
 
@@ -27,12 +27,12 @@ def InferTest():
     print(f"Using device: {device}")
 
     # 2. モデルのインスタンス化と学習済み重みのロード
-    model = GaussianDiffusion()
+    model = SmallDDPM.GaussianDiffusion()
     
     # Training関数で保存されるファイル名 'model_weight.pth' を指定
     # map_location=device を使うことで、GPUがない環境でもGPUで学習したモデルを読み込める
     try:
-        model.load_state_dict(torch.load('model_weight.pth', map_location=device))
+        model.load_state_dict(torch.load('smalmodel_weight.pth', map_location=device))
     except FileNotFoundError:
         print("Error: 'model_weight.pth' not found.")
         print("Please train the model first by uncommenting and running the Training() function in main().")
@@ -43,8 +43,8 @@ def InferTest():
 
     # 3. 画像生成の準備
     # Training時の画像サイズ（CenterCrop(256)）に合わせる
-    image_size = 256
-    channels = 3
+    image_size = 32
+    channels = 1
     batch_size = 1 # 一度に生成する画像の枚数
 
     # 4. 逆拡散プロセスによる画像生成
@@ -52,8 +52,8 @@ def InferTest():
     
     # (batch_size, channels, height, width) の形状でランダムノイズを生成
     img = torch.randn((batch_size, channels, image_size, image_size), device=device)
-    img =  load_image_as_tensor("./a.png").unsqueeze(0).to(device)
-    img = 2*img - 1
+    # img =  load_image_as_tensor("./a.png").unsqueeze(0).to(device)
+    # img = 2*img - 1
     save_tensor_as_image(img.squeeze(0), "rand.png")
     # 勾配計算は不要なため、torch.no_grad()コンテキストで実行
     with torch.no_grad():

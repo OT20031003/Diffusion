@@ -1,7 +1,7 @@
 from torch.nn import Module
 import torch, math
 from PIL import Image
-from torchvision import transforms
+from torchvision import transforms, datasets
 import torchvision
 from torch.utils.data import DataLoader
 import random
@@ -9,11 +9,48 @@ from embedingver import ResNet, Downsample, Upsample, UNet, SinusoidalPositionEm
 import os
 from torchvision.datasets import ImageFolder # ImageFolderをインポート
 from DDPM import load_image_as_tensor, save_tensor_as_image, GaussianDiffusion
+import SmallDDPM
 
 
+def MNISTtraining(model, optimizer):
+    model.train()
+    transform = transforms.Compose([
+        transforms.Resize((32, 32)),  # <-- この行を追加
+        transforms.ToTensor(), 
+        transforms.Normalize((0.5,), (0.5, ))
+    ])
+    train_dataset = datasets.MNIST(root='./MNISTdata', train=True, download=True, transform=transform)
+    batch_size = 16
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    print(f"train dataset size = {len(train_dataset)}")
+    num_epoch = 3
+    criterion = torch.nn.MSELoss()
 
+    for epoch in range(num_epoch):
+        for i, (images, _) in enumerate(train_loader):
+            # images の shape: torch.Size([batch_size, 1, 28, 28])
+            optimizer.zero_grad()
+            maxx = model.timesteps
+            minn = 0
+            t =  torch.randint(minn, maxx, (batch_size,), dtype=torch.long)
 
-        
+            
+            epsilon = torch.randn_like(images)
+            #print(f"images.shape = {images.shape}, t.shape = {t.shape}")
+            predict = model.unet.forward(model.forward_process(images, t, noise=epsilon), t)
+            loss = criterion(epsilon, predict)
+            if (i + 1) % 50 == 0:
+                
+                print(f"Epoch [{epoch + 1}/{num_epoch}], Step [{i+1}/ {len(train_loader)}]")
+                print(f"loss = {loss}")
+                if i > 300:
+                    break
+                
+            loss.backward()
+            optimizer.step()
+    torch.save(model.state_dict(), 'smalmodel_weight.pth')
+
+                
 def Training(model, optimizer):
     model.train()
     dir_path = "./dataset" # dataset内のフォルダの画像
@@ -50,9 +87,9 @@ def Training(model, optimizer):
 
 
 def Training_test():
-    model = GaussianDiffusion()
-    optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
-    Training(model, optimizer)
+    model = SmallDDPM.GaussianDiffusion()
+    optimizer = torch.optim.Adam(model.parameters(), lr = 0.00001)
+    MNISTtraining(model, optimizer)
 
 
 def main():

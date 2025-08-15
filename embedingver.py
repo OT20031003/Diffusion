@@ -73,7 +73,7 @@ class ResNet(torch.nn.Module):
         x = self.batch_norm(x)
         x = self.relu(x)
         #print(f"resnet inside x = {x.shape}")
-        x =x + self.mlp(timeembedding).unsqueeze(-1).unsqueeze(-1)
+        x =x + self.mlp(timeembedding).unsqueeze(-1).unsqueeze(-1) #channelはそれ以外のサイズは変わらず
         #print(f"mlp shape = {self.mlp(timeembedding).unsqueeze(-1).unsqueeze(-1).shape}")
         return x
 def default(x, y):
@@ -203,14 +203,14 @@ class SmallUNet(nn.Module):
         super().__init__()
         
         # --- 1. 初期畳み込み ---
-        self.conv_0 = nn.Conv2d(dim, model_channel, 3, 1, padding=1)
+        self.conv_0 = nn.Conv2d(dim, out_channels=model_channel, kernel_size=1, stride=1, padding=0) #kernelsizeが1なのでpaddingは0
         dim = model_channel
 
         # --- 2. ダウンサンプリングパス (2段階) ---
         # Level 1: 32x32 -> 16x16
         self.resnet1_1 = ResNet(dim, timeembedding_dim=timeembedding_dim)
         self.resnet1_2 = ResNet(dim, timeembedding_dim=timeembedding_dim)
-        self.downsample1 = Downsample(dim, dim*2)
+        self.downsample1 = Downsample(dim, dim*2) #チャネル数を2倍
         dim *= 2 # dim is now 128
 
         # Level 2: 16x16 -> 8x8
@@ -238,7 +238,8 @@ class SmallUNet(nn.Module):
 
         # --- 5. 最終層 ---
         assert(model_channel == dim)
-        self.conv_last = nn.Conv2d(dim*2, 3, 3, 1, padding=1)
+        
+        self.conv_last = nn.Conv2d(dim*2, out_channels=1, kernel_size=1, stride=1, padding=0)
         self.sinu = SinusoidalPositionEmbeddings(dim=timeembedding_dim)
         
 
@@ -250,30 +251,30 @@ class SmallUNet(nn.Module):
 
         # ダウンサンプリング
         x = self.resnet1_1(x, tmb)
-        x = self.resnet1_2(x, tmb)
+        #x = self.resnet1_2(x, tmb)
         x1 = x # 32x32
         
         x = self.downsample1(x)
         x = self.resnet2_1(x, tmb)
-        x = self.resnet2_2(x, tmb)
+        #x = self.resnet2_2(x, tmb)
         x2 = x # 16x16
 
         x = self.downsample2(x) # -> 8x8
 
         # ボトルネック
         x = self.resnet_bottleneck1(x, tmb)
-        x = self.resnet_bottleneck2(x, tmb)
+        #x = self.resnet_bottleneck2(x, tmb)
 
         # アップサンプリング
         x = self.upsample1(x) # -> 16x16
         x = torch.cat((x2, x), dim = 1)
         x = self.resnet3_1(x, tmb)
-        x = self.resnet3_2(x, tmb)
+        #x = self.resnet3_2(x, tmb)
 
         x = self.upsample2(x) # -> 32x32
         x = torch.cat((x1, x), dim = 1)
         x = self.resnet4_1(x, tmb)
-        x = self.resnet4_2(x, tmb)
+        #x = self.resnet4_2(x, tmb)
         
         # 最終出力
         x = self.conv_last(x)
